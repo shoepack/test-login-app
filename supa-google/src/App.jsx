@@ -111,7 +111,7 @@ export default function App() {
     lastCheckedUserIdRef.current = null;
   };
 
-  // Render “Access Denied” if blocked
+  // Render "Access Denied" if blocked
   if (message && !user && message.includes("Access denied")) {
     return (
       <div className="login-container">

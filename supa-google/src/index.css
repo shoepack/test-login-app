@@ -57,6 +57,31 @@ button:focus-visible {
   justify-content: center;
   height: 100vh; /* fill the viewport */
   text-align: center; /* center text inside */
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
+}
+
+/* Smooth fade animation for content changes */
+.login-container > * {
+  transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+/* Reduce flash by making initial content appear more smoothly */
+.login-container h2,
+.login-container p,
+.login-container button {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Optional: style your headers consistently */
