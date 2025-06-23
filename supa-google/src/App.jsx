@@ -1,5 +1,5 @@
 // src/App.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import GoogleButton from "./components/GoogleButton";
 import "./index.css"; // make sure your .login-container & Google button styles live here
@@ -8,6 +8,8 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const isCheckingProfileRef = useRef(false);
+  const lastCheckedUserIdRef = useRef(null);
 
   // On mount: check existing session & listen for changes
   useEffect(() => {
@@ -20,31 +22,70 @@ export default function App() {
 
   // Shared session handler
   async function handleSession({ data: { session } }) {
+    // Clear any existing messages when session changes
     if (!session?.user) {
       setUser(null);
+      isCheckingProfileRef.current = false;
+      lastCheckedUserIdRef.current = null;
       return;
     }
 
-    // Query the profiles table for this user’s ID
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("id", session.user.id)
-      .single();
+    // Prevent multiple simultaneous profile checks for the same user
+    if (
+      isCheckingProfileRef.current ||
+      lastCheckedUserIdRef.current === session.user.id
+    ) {
+      return;
+    }
 
-    // If no row or error → not whitelisted
-    if (error || !data) {
-      setMessage(
-        "Access denied. If you believe this is an error, please contact an administrator."
-      );
+    isCheckingProfileRef.current = true;
+    lastCheckedUserIdRef.current = session.user.id;
+
+    try {
+      // Query the profiles table for this user's ID (using select without .single() to avoid 406 errors)
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", session.user.id);
+
+      // Handle database errors (not including "no rows found" which is expected for non-whitelisted users)
+      if (error) {
+        console.error("Profile lookup error:", error);
+        setMessage(
+          "An error occurred while verifying your access. Please try again."
+        );
+        await supabase.auth.signOut();
+        setUser(null);
+        isCheckingProfileRef.current = false;
+        lastCheckedUserIdRef.current = null;
+        return;
+      }
+
+      // Check if user is whitelisted (data array should have exactly one item)
+      if (!data || data.length === 0) {
+        // User not found in profiles table → not whitelisted
+        setMessage(
+          "Access denied. If you believe this is an error, please contact an administrator."
+        );
+        await supabase.auth.signOut();
+        setUser(null);
+        isCheckingProfileRef.current = false;
+        lastCheckedUserIdRef.current = null;
+        return;
+      }
+
+      // Whitelisted → proceed
+      setMessage("Successfully logged in!");
+      setUser(session.user);
+      isCheckingProfileRef.current = false;
+    } catch (err) {
+      console.error("Unexpected error during profile check:", err);
+      setMessage("An unexpected error occurred. Please try again.");
       await supabase.auth.signOut();
       setUser(null);
-      return;
+      isCheckingProfileRef.current = false;
+      lastCheckedUserIdRef.current = null;
     }
-
-    // Whitelisted → proceed
-    setMessage("Successfully logged in!");
-    setUser(session.user);
   }
 
   // Trigger Google OAuth
@@ -66,6 +107,8 @@ export default function App() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setMessage("");
+    isCheckingProfileRef.current = false;
+    lastCheckedUserIdRef.current = null;
   };
 
   // Render “Access Denied” if blocked
