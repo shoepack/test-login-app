@@ -1,30 +1,64 @@
 // src/App.jsx
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useReducer, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import GoogleButton from "./components/GoogleButton";
 import "./index.css"; // make sure your .login-container & Google button styles live here
 
+const initialState = {
+  user: null,
+  loading: false,
+  message: "",
+};
+
+function authReducer(state, action) {
+  switch (action.type) {
+    case "LOGIN_START":
+      return { ...state, loading: true, message: "Signing in…" };
+    case "LOGIN_FAILURE":
+      return { ...state, loading: false, message: action.payload };
+    case "SESSION_SUCCESS":
+      return {
+        ...state,
+        user: action.payload,
+        message: "Successfully logged in!",
+      };
+    case "PROFILE_CHECK_FAILURE":
+      return { ...initialState, message: action.payload };
+    case "LOGOUT":
+      return { ...initialState };
+    default:
+      throw new Error(`Unhandled action type: ${action.type}`);
+  }
+}
+
 export default function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [state, dispatch] = useReducer(authReducer, initialState);
+  const { user, loading, message } = state;
+
   const isCheckingProfileRef = useRef(false);
   const lastCheckedUserIdRef = useRef(null);
 
   // On mount: check existing session & listen for changes
   useEffect(() => {
-    supabase.auth.getSession().then(handleSession);
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        handleSession(session);
+      }
+    });
+
+    // Listen for auth state changes
     const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
-      handleSession({ data: { session } });
+      handleSession(session);
     });
     return () => listener.subscription.unsubscribe();
   }, []);
 
   // Shared session handler
-  async function handleSession({ data: { session } }) {
+  async function handleSession(session) {
     // Clear any existing messages when session changes
     if (!session?.user) {
-      setUser(null);
+      dispatch({ type: "LOGOUT" });
       isCheckingProfileRef.current = false;
       lastCheckedUserIdRef.current = null;
       return;
@@ -51,62 +85,61 @@ export default function App() {
       // Handle database errors (not including "no rows found" which is expected for non-whitelisted users)
       if (error) {
         console.error("Profile lookup error:", error);
-        setMessage(
-          "An error occurred while verifying your access. Please try again."
-        );
+        dispatch({
+          type: "PROFILE_CHECK_FAILURE",
+          payload:
+            "An error occurred while verifying your access. Please try again.",
+        });
         await supabase.auth.signOut();
-        setUser(null);
-        isCheckingProfileRef.current = false;
-        lastCheckedUserIdRef.current = null;
         return;
       }
 
       // Check if user is whitelisted (data array should have exactly one item)
       if (!data || data.length === 0) {
         // User not found in profiles table → not whitelisted
-        setMessage(
-          "Access denied. If you believe this is an error, please contact an administrator."
-        );
+        dispatch({
+          type: "PROFILE_CHECK_FAILURE",
+          payload:
+            "Access denied. If you believe this is an error, please contact an administrator.",
+        });
         await supabase.auth.signOut();
-        setUser(null);
-        isCheckingProfileRef.current = false;
-        lastCheckedUserIdRef.current = null;
         return;
       }
 
       // Whitelisted → proceed
-      setMessage("Successfully logged in!");
-      setUser(session.user);
-      isCheckingProfileRef.current = false;
+      dispatch({ type: "SESSION_SUCCESS", payload: session.user });
     } catch (err) {
       console.error("Unexpected error during profile check:", err);
-      setMessage("An unexpected error occurred. Please try again.");
+      dispatch({
+        type: "PROFILE_CHECK_FAILURE",
+        payload: "An unexpected error occurred. Please try again.",
+      });
       await supabase.auth.signOut();
-      setUser(null);
+    } finally {
       isCheckingProfileRef.current = false;
-      lastCheckedUserIdRef.current = null;
     }
   }
 
   // Trigger Google OAuth
   const handleGoogleLogin = async () => {
-    setLoading(true);
-    setMessage("Signing in…");
+    dispatch({ type: "LOGIN_START" });
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: window.location.origin },
     });
     if (error) {
       console.error(error);
-      setMessage("Error encountered. Unable to log in to site.");
-      setLoading(false);
+      dispatch({
+        type: "LOGIN_FAILURE",
+        payload: "Error encountered. Unable to log in to site.",
+      });
     }
   };
 
   // Sign out
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setMessage("");
+    dispatch({ type: "LOGOUT" });
     isCheckingProfileRef.current = false;
     lastCheckedUserIdRef.current = null;
   };
