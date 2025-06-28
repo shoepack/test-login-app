@@ -2,23 +2,33 @@
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Color Scheme & Variables (Dark Mode Default) */
+  color-scheme: light dark;
+  --color-text: rgba(255, 255, 255, 0.87);
+  --color-background: #242424;
+  --color-button-bg: #1a1a1a;
+  --color-button-bg-light: #f9f9f9;
+  --color-primary-accent: #646cff;
+  --color-error: #dc3545;
 }
 
 body {
   margin: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  display: grid; /* Modern way to center */
+  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background-color: var(--color-background);
+  color: var(--color-text);
 }
+
+/* --- Generic Elements --- */
 
 button {
   border-radius: 8px;
@@ -27,12 +37,12 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: var(--color-button-bg);
   cursor: pointer;
   transition: border-color 0.25s;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: var(--color-primary-accent);
 }
 button:focus,
 button:focus-visible {
@@ -41,21 +51,19 @@ button:focus-visible {
 
 @media (prefers-color-scheme: light) {
   :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  button {
-    background-color: #f9f9f9;
+    --color-text: #213547;
+    --color-background: #ffffff;
+    --color-button-bg: var(--color-button-bg-light);
   }
 }
 
-/* Center everything vertically & horizontally */
+/* --- App-Specific Components --- */
+
 .login-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  height: 100vh; /* fill the viewport */
+  /* Centering is now handled by the body, simplifying this component */
   text-align: center; /* center text inside */
   opacity: 1;
   transition: opacity 0.3s ease-in-out;
@@ -92,12 +100,12 @@ button:focus-visible {
 
 /* Error message styling */
 .error-message {
-  color: #dc3545;
+  color: var(--color-error);
   font-weight: 500;
 }
 
 .error-header {
-  color: #dc3545;
+  color: var(--color-error);
 }
 
 /* Google button styles */
