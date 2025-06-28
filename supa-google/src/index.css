@@ -142,6 +142,12 @@ button:focus-visible {
   gap: 12px;
 }
 
+.gsi-logo {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
 .gsi-material-button-icon {
   display: flex;
   align-items: center;

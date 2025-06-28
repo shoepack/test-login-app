@@ -1,21 +1,24 @@
 // src/components/GoogleButton.jsx
-export default function GoogleButton({ onClick, disabled }) {
+import { memo } from "react";
+
+function GoogleButton({ onClick, disabled }) {
   return (
     <button
       className="gsi-material-button"
       onClick={onClick}
       disabled={disabled}
       type="button"
+      aria-label="Continue with Google"
     >
       <div className="gsi-material-button-state" />
       <div className="gsi-material-button-content-wrapper">
         <div className="gsi-material-button-icon">
           {/* Simplified Google "G" SVG */}
           <svg
+            className="gsi-logo" // Add a class for styling
             version="1.1"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
-            style={{ display: "block", width: "20px", height: "20px" }}
           >
             <path
               fill="#4285F4"
@@ -42,3 +45,5 @@ export default function GoogleButton({ onClick, disabled }) {
     </button>
   );
 }
+
+export default memo(GoogleButton);

@@ -25,13 +25,14 @@ To get a local copy up and running, follow these simple steps.
 
 ### Installation & Setup
 
-1.  Clone the repo:
+1.  Clone the repo and navigate into it:
     ```sh
     git clone https://github.com/shoepack/test-login-app.git
+    cd test-login-app
     ```
-2.  Navigate to the project directory:
+2.  The application source code is in the `supa-google` directory. Navigate into it:
     ```sh
-    cd test-login-app/supa-google
+    cd supa-google
     ```
 3.  Install NPM packages:
     ```sh

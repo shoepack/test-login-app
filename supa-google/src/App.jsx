@@ -1,5 +1,5 @@
 // src/App.jsx
-import { useEffect, useReducer, useRef } from "react";
+import { useEffect, useReducer, useRef, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import GoogleButton from "./components/GoogleButton";
 import "./index.css"; // make sure your .login-container & Google button styles live here
@@ -38,24 +38,8 @@ export default function App() {
   const isCheckingProfileRef = useRef(false);
   const lastCheckedUserIdRef = useRef(null);
 
-  // On mount: check existing session & listen for changes
-  useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        handleSession(session);
-      }
-    });
-
-    // Listen for auth state changes
-    const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
-      handleSession(session);
-    });
-    return () => listener.subscription.unsubscribe();
-  }, []);
-
-  // Shared session handler
-  async function handleSession(session) {
+  // Shared session handler, memoized with useCallback
+  const handleSession = useCallback(async (session) => {
     // Clear any existing messages when session changes
     if (!session?.user) {
       dispatch({ type: "LOGOUT" });
@@ -118,10 +102,26 @@ export default function App() {
     } finally {
       isCheckingProfileRef.current = false;
     }
-  }
+  }, []); // Empty dependency array because dispatch and supabase client are stable.
+
+  // On mount: check existing session & listen for changes
+  useEffect(() => {
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        handleSession(session);
+      }
+    });
+
+    // Listen for auth state changes
+    const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
+      handleSession(session);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, [handleSession]); // handleSession is now a dependency of useEffect
 
   // Trigger Google OAuth
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = useCallback(async () => {
     dispatch({ type: "LOGIN_START" });
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -134,15 +134,15 @@ export default function App() {
         payload: "Error encountered. Unable to log in to site.",
       });
     }
-  };
+  }, []); // Empty dependency array
 
   // Sign out
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();
     dispatch({ type: "LOGOUT" });
     isCheckingProfileRef.current = false;
     lastCheckedUserIdRef.current = null;
-  };
+  }, []); // Empty dependency array
 
   // Render "Access Denied" if blocked
   if (message && !user && message.includes("Access denied")) {
